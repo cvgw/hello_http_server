@@ -27,22 +27,18 @@ int getAddressInfo(char host[], char port[], struct addrinfo **res)
 }
 
 int main() {
-    int socketfd, numBytesRecv, bufferSize = 6000;
+    int socketfd, numBytesRecv, numBytesSent, bufferSize = 6000;
     char buffer[bufferSize], port[] = "8081", host[] = "localhost";
     struct addrinfo *res;
-    struct sockaddr_in socketaddr;
+    struct sockaddr_in *socketaddr;
 
     getAddressInfo(host, port, &res);
 
     socketfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    socketaddr = *(struct sockaddr_in *)res->ai_addr;
+    socketaddr = (struct sockaddr_in *)res->ai_addr;
     
-    if (bind(
-            socketfd,
-            (struct sockaddr *)&socketaddr,
-            sizeof(socketaddr)) == -1)
-    {
+    if (bind(socketfd, (struct sockaddr *)socketaddr, sizeof(*socketaddr)) == -1) {
         perror("bind");
         exit(1);
     }
@@ -67,7 +63,13 @@ int main() {
         exit(1);
     }
 
-    printf("Buffer: %s\n", buffer);
-    
+    printf("Buffer:\n%s\n", buffer);
+
+    numBytesSent = send(session_fd, &buffer, bufferSize, 0);
+    if ( numBytesSent == -1 ) {
+        perror("send");
+        exit(1);
+    }
+
     return 0;
 }
