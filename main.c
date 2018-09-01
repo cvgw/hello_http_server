@@ -27,85 +27,90 @@ int getAddressInfo(char host[], char port[], struct addrinfo **res)
     return 0;
 }
 
-void processBuffer(char *buffer)
-{
-    int currentBuffLen, i = 0;
-    char *operation, *header, **headers;
-    const char *currentBuff;
-    const char *nextBuff;
+int find_char(char *buffer, char search_char) {
+    char current_char = '0';
+    int position = 0;
 
-    currentBuff = buffer;
-
-    nextBuff = strchr(currentBuff, '\n');
-    currentBuffLen = (nextBuff - currentBuff);
-    operation = malloc(currentBuffLen);
-    if (operation)
-    {
-        memcpy(operation, currentBuff, currentBuffLen);
-        printf("Operation: %s\n", operation);
-    }
-    else
-    {
-        perror("malloc");
-        exit(1);
-    }
-
-    currentBuff = nextBuff + 1;
-
-    headers = malloc(sizeof(char *) * 10);
-    if (headers == NULL)
-    {
-        perror("malloc");
-        exit(1);
-    }
-    i = 0;
-
-    while (currentBuff)
-    {
-        nextBuff = strchr(currentBuff, '\n');
-        currentBuffLen = (nextBuff - currentBuff);
-        header = malloc(currentBuffLen + 1);
-        if (header)
+    while (current_char != '\0')
+    {   
+        current_char = buffer[position];
+        if (current_char == search_char)
         {
-            memcpy(header, currentBuff, currentBuffLen);
-            header[currentBuffLen] = '\0';
-            if (strcmp(header, "\r") == 0)
-            {
-                break;
-            }
-            printf("Header %d: %s\n", i, header);
-            *(headers + i) = header;
+            return position;
         }
-        else
+        position++;
+    }
+
+    return -1;
+}
+
+void parseHeaders(char *currentBuff, char **headers, int headers_size, int *header_num) {
+    int string_size, position = 0;
+    char *header;
+    while (*header_num < headers_size && currentBuff[0] != '\r')
+    {
+        position = find_char(currentBuff, '\n');
+        if (position == -1)
+            break;
+
+        string_size = position - 1;
+        headers[*header_num] = malloc(string_size);
+        header = headers[*header_num];
+        if (header == NULL)
         {
             perror("malloc");
             exit(1);
         }
-        currentBuff = nextBuff + 1;
-        i++;
-        free(header);
+
+        memcpy(header, currentBuff, string_size);
+        header[string_size] = '\0';
+
+        currentBuff = currentBuff + position + 1;
+        (*header_num)++;
     }
+}
 
-    currentBuff = nextBuff + 1;
+void processBuffer(char *buffer)
+{
+    int string_size, position, i = 0, header_num = 0, headers_size = 10;
+    char *operation, **headers;
+    char *currentBuff;
 
-    int buffLen = strlen(currentBuff);
-    char *body = malloc(buffLen + 1);
-    if (body)
+    currentBuff = buffer;
+    
+    position = find_char(currentBuff, '\n');
+    if (position == -1)
     {
-        memcpy(body, currentBuff, buffLen);
-        body[buffLen] = '\0';
-        printf("Body: %s\n", body);
+        printf("couldn't find newline");
+        exit(1);
     }
-    else
+
+    currentBuff = currentBuff + position + 1;
+    position = position - 1;
+    
+    operation = malloc(position);
+    if (operation == NULL)
     {
         perror("malloc");
         exit(1);
     }
+    memcpy(operation, buffer, position);
+    operation[position] = '\0';    
+    printf("Operation: %s\n", operation);
 
-    free(operation);
-    free(header);
+    headers = malloc(sizeof(char *)*headers_size);
+    parseHeaders(currentBuff, headers, headers_size, &header_num);
+
+    while (i < header_num)
+    {
+        printf("Header number %i: %s\n", i, headers[i]);
+        free(headers[i]);
+        i++;
+    }
+
+
     free(headers);
-    free(body);
+    free(operation);
 }
 
 int main() {
